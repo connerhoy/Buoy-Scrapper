@@ -1,49 +1,37 @@
-from http.server import BaseHTTPRequestHandler
 import pandas as pd
 import requests
 import json
 from pymongo import MongoClient
 
+# Connect to your MongoDB database
+client = MongoClient('mongodb+srv://connerhoy:YiXItLVEwnSJ7TIB@buoy-data.xwg0qpk.mongodb.net/')  
+db = client['Buoy-Data']  
+collection = db['Buoys']
 
-class handler(BaseHTTPRequestHandler):
+# Request the data
+response = requests.get('https://www.ndbc.noaa.gov/data/latest_obs/latest_obs.txt')
 
-    def do_GET(self):
-        self.send_response(200)
-        self.send_header('Content-type', 'text/plain')
-        self.end_headers()
-        self.wfile.write('Hello, world!'.encode('utf-8'))
+# Split the text data by new lines to get each row
+data = response.text.split('\n')
 
-        # Connect to your MongoDB database
-        client = MongoClient(
-            'mongodb+srv://connerhoy:YiXItLVEwnSJ7TIB@buoy-data.xwg0qpk.mongodb.net/')
-        db = client['Buoy-Data']
-        collection = db['Buoys']
+# The first row is the header row, so we separate that
+headers = data[0].split()
 
-        # Request the data
-        response = requests.get(
-            'https://www.ndbc.noaa.gov/data/latest_obs/latest_obs.txt')
+# The rest of the data is the actual buoy data
+buoy_data = [row.split() for row in data[1:]]
 
-        # Split the text data by new lines to get each row
-        data = response.text.split('\n')
+# Use pandas to create a DataFrame
+df = pd.DataFrame(buoy_data, columns=headers)
 
-        # The first row is the header row, so we separate that
-        headers = data[0].split()
+# Convert the DataFrame to a list of dict records
+records = df.to_dict('records')
+print("hello")
 
-        # The rest of the data is the actual buoy data
-        buoy_data = [row.split() for row in data[1:]]
+# Save each record to your MongoDB collection
+for record in records:
+    collection.update_one(
+        {"#STN": record["#STN"]},  # filter
+        {"$set": record},  # update
+        upsert=True  # if not found, insert new document
+    )
 
-        # Use pandas to create a DataFrame
-        df = pd.DataFrame(buoy_data, columns=headers)
-
-        # Convert the DataFrame to a list of dict records
-        records = df.to_dict('records')
-        print(records)
-        # Save each record to your MongoDB collection
-        for record in records:
-            collection.update_one(
-                {"#STN": record["#STN"]},  # filter
-                {"$set": record},  # update
-                upsert=True  # if not found, insert new document
-            )
-
-        return
