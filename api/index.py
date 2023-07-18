@@ -2,8 +2,10 @@ import pandas as pd
 import requests
 import time
 from pymongo import MongoClient, UpdateOne
+import traceback
 
-# Start the timer
+try:
+  # Start the timer
 start_time = time.time()
 
 # Connect to your MongoDB database
@@ -38,4 +40,9 @@ collection.bulk_write(operations)
 # End the timer and print the time taken
 end_time = time.time()
 print("Time taken: {:.6f}s".format(end_time - start_time))
+   
+except Exception as e:
+    print("An error occurred:")
+    print(traceback.format_exc())
+
 
