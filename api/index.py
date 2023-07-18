@@ -1,7 +1,10 @@
 import pandas as pd
 import requests
-import json
-from pymongo import MongoClient
+import time
+from pymongo import MongoClient, UpdateOne
+
+# Start the timer
+start_time = time.time()
 
 # Connect to your MongoDB database
 client = MongoClient('mongodb+srv://connerhoy:YiXItLVEwnSJ7TIB@buoy-data.xwg0qpk.mongodb.net/')  
@@ -25,13 +28,14 @@ df = pd.DataFrame(buoy_data, columns=headers)
 
 # Convert the DataFrame to a list of dict records
 records = df.to_dict('records')
-print("hello")
 
-# Save each record to your MongoDB collection
-for record in records:
-    collection.update_one(
-        {"#STN": record["#STN"]},  # filter
-        {"$set": record},  # update
-        upsert=True  # if not found, insert new document
-    )
+# Prepare bulk operations
+operations = [UpdateOne({"#STN": record["#STN"]}, {"$set": record}, upsert=True) for record in records]
+
+# Perform bulk operations
+collection.bulk_write(operations)
+
+# End the timer and print the time taken
+end_time = time.time()
+print("Time taken: {:.6f}s".format(end_time - start_time))
 
